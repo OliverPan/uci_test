@@ -41,32 +41,32 @@ def data_import(feature_data, label_data):
         label_list = fi.readlines()
     data_set = []
     for i in range(feature_list.__len__()):
-        data = Data(list(feature_list[i]), list(label_list[i]))
+        data = Data(list(feature_list[i]), [list(label_list[i])[1]])
         data_set.append(data)
     return Dataset(data_set)
 
 
 # 数据集相关常数
 INPUT_NODE = 32
-OUTPUT_NODE = 4
+OUTPUT_NODE = 1
 
 # 神经网络的参数
-LAYER1_NODE = 20
+LAYER1_NODE = 50
 BATCH_SIZE = 100
 
 LEARNING_RATE_BASE = 0.8
 LEARNING_RATE_DECAY = 0.99
 REGULARIZATION_RATE = 0.0001
-TRAINING_STEPS = 300
+TRAINING_STEPS = 30000
 MOVING_AVERAGE_DECAY = 0.99
 
 
 def inference(input_tensor, avg_class, weights1, biases1, weights2, biases2):
     if not avg_class:
-        layer1 = tf.sigmoid(tf.matmul(input_tensor, weights1) + biases1)
+        layer1 = tf.nn.relu(tf.matmul(input_tensor, weights1) + biases1)
         return tf.matmul(layer1, weights2) + biases2
     else:
-        layer1 = tf.sigmoid(tf.matmul(input_tensor, avg_class.average(weights1)) + avg_class.average(biases1))
+        layer1 = tf.nn.relu(tf.matmul(input_tensor, avg_class.average(weights1)) + avg_class.average(biases1))
         return tf.matmul(layer1, avg_class.average(weights2)) + avg_class.average(biases2)
 
 
@@ -112,13 +112,13 @@ def train(data_set):
 
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
+        validate_feed = {x: data_set.features, y_: data_set.labels}
 
         for i in range(TRAINING_STEPS):
             if i % 1000 == 0:
-                validate_acc = sess.run(accuracy, feed_dict={x: data_set.features, y_: data_set.labels})
+                validate_acc = sess.run(accuracy, feed_dict=validate_feed)
                 print("After %d training step(s), validation accuracy "
                       "using average model is %g " % (i, validate_acc))
-
             xs, ys = data_set.next_batch(BATCH_SIZE)
             sess.run(train_op, feed_dict={x: xs, y_: ys})
 
