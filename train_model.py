@@ -1,41 +1,54 @@
 import tensorflow as tf
-import numpy as np
 from dataset import Data, Dataset
 import random
+import numpy as np
 
 
-def divide_dataset(filename, ratio):
-    with open(filename, "r+") as fi:
-        data_list = fi.readlines()
-    train_list = []
-    test_list = []
-    for line in data_list:
-        tmp_rnd = random.Random(0, 1)
-        if tmp_rnd > ratio:
-            test_list.append(line)
+def divide_dataset(feature_filename, label_filename, ratio):
+    with open(feature_filename, "r+") as fi:
+        feature_data_list = fi.readlines()
+    with open(label_filename, "r+") as fi:
+        label_data_list = fi.readlines()
+    num = feature_data_list.__len__()
+    train_feature_list = []
+    test_feature_list = []
+    train_label_list = []
+    test_label_list = []
+    for i in range(num):
+        tmprdm = random.uniform(0, 1)
+        if tmprdm < ratio:
+            train_feature_list.append(feature_data_list[i])
+            train_label_list.append(label_data_list[i])
         else:
-            train_list.append(line)
+            test_feature_list.append(feature_data_list[i])
+            test_label_list.append(label_data_list[i])
 
-    with open("./data/train.data", "w+") as fi:
-        fi.write("".join(train_list))
-    with open("./data/test.data", "w+") as fi:
-        fi.write("".join(test_list))
+    with open("./data/train/train_feature.data", "w+") as fi:
+        fi.write("".join(train_feature_list))
+    with open("./data/train/train_label.data", "w+") as fi:
+        fi.write("".join(train_label_list))
+
+    with open("./data/test/test_feature.data", "w+") as fi:
+        fi.write("".join(test_feature_list))
+    with open("./data/test/test_label.data", "w+") as fi:
+        fi.write("".join(test_label_list))
 
 
-def data_import(data_file):
-    with open(data_file, "r") as fi:
-        data_list = fi.readlines()
+def data_import(feature_data, label_data):
+    with open(feature_data, "r") as fi:
+        feature_list = fi.readlines()
+    with open(label_data, "r") as fi:
+        label_list = fi.readlines()
     data_set = []
-    for _ in data_list:
-        line = _.split(",")
-        data = Data(line[:-1], line[-1])
+    for i in range(feature_list.__len__()):
+        data = Data(list(feature_list[i]), list(label_list[i]))
         data_set.append(data)
-    return data_set
+    return Dataset(data_set)
 
 
 # 数据集相关常数
 INPUT_NODE = 32
-OUTPUT_NODE = 2
+OUTPUT_NODE = 4
 
 # 神经网络的参数
 LAYER1_NODE = 20
@@ -58,8 +71,8 @@ def inference(input_tensor, avg_class, weights1, biases1, weights2, biases2):
 
 
 def train(data_set):
-    x = tf.placeholder(tf.int32, [None, INPUT_NODE], name='x-input')
-    y_ = tf.placeholder(tf.int8, [None, OUTPUT_NODE], name='y-input')
+    x = tf.placeholder(tf.float32, [None, INPUT_NODE], name='x-input')
+    y_ = tf.placeholder(tf.float32, [None, OUTPUT_NODE], name='y-input')
 
     weights1 = tf.Variable(tf.truncated_normal([INPUT_NODE, LAYER1_NODE], stddev=0.1))
     biases1 = tf.Variable(tf.constant(0.1, shape=[LAYER1_NODE]))
@@ -100,11 +113,9 @@ def train(data_set):
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
 
-        validate_feed = {x: data_set.features, y_: data_set.labels}
-
         for i in range(TRAINING_STEPS):
             if i % 1000 == 0:
-                validate_acc = sess.run(accuracy, feed_dict=validate_feed)
+                validate_acc = sess.run(accuracy, feed_dict={x: data_set.features, y_: data_set.labels})
                 print("After %d training step(s), validation accuracy "
                       "using average model is %g " % (i, validate_acc))
 
@@ -112,15 +123,13 @@ def train(data_set):
             sess.run(train_op, feed_dict={x: xs, y_: ys})
 
 
-def main():
-
-
-
-
+def main(argv=None):
+    divide_dataset("./data/TestData/TestData/Ra.txt", "./data/TestData/TestData/leak0.txt", 0.4)
+    data_set = data_import("./data/train/train_feature.data", "./data/train/train_label.data")
+    train(data_set)
 
 
 if __name__ == "__main__":
-    print("")
-
+    tf.app.run()
 
 
