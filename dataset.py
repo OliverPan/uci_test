@@ -13,7 +13,6 @@ class Data(object):
             self.label = None
         else:
             self.label = label
-            self.label.append("0")
 
 
 class Dataset(object):

@@ -48,7 +48,7 @@ def data_import(feature_data, label_data):
 
 # 数据集相关常数
 INPUT_NODE = 32
-OUTPUT_NODE = 2
+OUTPUT_NODE = 1
 
 # 神经网络的参数
 LAYER1_NODE = 50
