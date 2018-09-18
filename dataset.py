@@ -7,10 +7,13 @@ class Data(object):
             self.feature = np.array(feature[:-1], dtype=np.str_)
         else:
             self.feature = np.array(feature, dtype=np.str_)
-        if label[-1]== "\n":
+        if label[-1] == "\n":
             self.label = label[:-1]
+        elif not label:
+            self.label = None
         else:
             self.label = label
+            self.label.append("0")
 
 
 class Dataset(object):
