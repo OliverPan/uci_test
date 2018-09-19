@@ -41,24 +41,23 @@ def data_import(feature_data, label_data):
         label_list = fi.readlines()
     data_set = []
     for i in range(feature_list.__len__()):
-        data = Data(list(feature_list[i])[0:24], list(label_list[i])[0:1])
+        data = Data(list(feature_list[i]), list(label_list[i])[0:1])
         data_set.append(data)
     return Dataset(data_set)
 
 
 # 数据集相关常数
-INPUT_NODE = 24
+INPUT_NODE = 32
 OUTPUT_NODE = 1
 
 # 神经网络的参数
-LAYER1_NODE = 320
-
-BATCH_SIZE = 50
+LAYER1_NODE = 100
+BATCH_SIZE = 1
 
 LEARNING_RATE_BASE = 0.8
 LEARNING_RATE_DECAY = 0.99
 REGULARIZATION_RATE = 0.0001
-TRAINING_STEPS = 200000
+TRAINING_STEPS = 30000
 MOVING_AVERAGE_DECAY = 0.99
 
 
@@ -82,6 +81,13 @@ def train(data_set, test_set, test_data):
     x = tf.placeholder(tf.float32, [None, INPUT_NODE], name='x-input')
     y_ = tf.placeholder(tf.float32, [None, OUTPUT_NODE], name='y-input')
 
+    """
+    weights1 = tf.Variable(tf.truncated_normal([INPUT_NODE, LAYER1_NODE], stddev=0.1))
+    biases1 = tf.Variable(tf.constant(0.1, shape=[LAYER1_NODE]))
+
+    weights2 = tf.Variable(tf.truncated_normal([LAYER1_NODE, OUTPUT_NODE], stddev=0.1))
+    biases2 = tf.Variable(tf.constant(0.1, shape=[OUTPUT_NODE]))
+    """
     weights1 = tf.Variable(tf.random_normal([INPUT_NODE, LAYER1_NODE]))
     biases1 = tf.Variable(tf.zeros([LAYER1_NODE]))
 
@@ -90,11 +96,40 @@ def train(data_set, test_set, test_data):
 
     y = inference(x, None, weights1, biases1, weights2, biases2)
 
+    global_step = tf.Variable(0, trainable=False)
+
+    variable_averages = tf.train.ExponentialMovingAverage(MOVING_AVERAGE_DECAY, global_step)
+
+    variable_averages_op = variable_averages.apply(tf.trainable_variables())
+
+    average_y = inference(x, variable_averages, weights1, biases1, weights2, biases2)
+
+    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y, labels=tf.argmax(y_, 1))
+    cross_entropy_mean = tf.reduce_mean(cross_entropy)
+
+    regularizer = tf.contrib.layers.l2_regularizer(REGULARIZATION_RATE)
+    regularization = regularizer(weights1) + regularizer(weights2)
+    # loss = cross_entropy_mean + regularization
     loss = tf.reduce_mean(tf.square(y - y_))
 
+    """
+    learning_rate = tf.train.exponential_decay(
+        LEARNING_RATE_BASE,
+        global_step,
+        data_set.num / BATCH_SIZE,
+        LEARNING_RATE_DECAY)
+    """
     learning_rate = 0.01
 
-    train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+    # train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
+    train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss, global_step=global_step)
+
+    with tf.control_dependencies([train_step, variable_averages_op]):
+        train_op = tf.no_op(name='train')
+
+    # correct_prediction = tf.equal(tf.argmax(average_y, 1), tf.argmax(y_, 1))
+    correct_prediction = tf.equal(y_, y)
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
