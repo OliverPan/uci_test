@@ -101,14 +101,11 @@ def train(data_set, test_set):
         tf.global_variables_initializer().run()
         validate_feed = {x: data_set.features, y_: data_set.labels}
         # test_feed = {x: test_set.features, y_: test_set.labels}
-        tmp = 0
         for i in range(TRAINING_STEPS):
             if i % 1000 == 0:
                 validate_acc = sess.run(loss, feed_dict=validate_feed)
                 print("After %d training step(s), validation accuracy "
                       "using average model is %g " % (i, 1 - validate_acc))
-                print(sess.run(y, feed_dict={x: [data_set.features[tmp]]}))
-                tmp += 1
             xs, ys = data_set.next_batch(BATCH_SIZE)
             sess.run(train_step, feed_dict={x: xs, y_: ys})
             if (1 - validate_acc) > 0.98:
