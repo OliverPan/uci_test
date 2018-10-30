@@ -5,7 +5,7 @@ import numpy as np
 import sys
 
 
-def divide_dataset(feature_filename, label_filename, ratio):
+def divide_dataset(feature_filename, label_filename, ratio, append_file=None):
     with open(feature_filename, "r+") as fi:
         feature_data_list = fi.readlines()
     with open(label_filename, "r+") as fi:
@@ -15,14 +15,27 @@ def divide_dataset(feature_filename, label_filename, ratio):
     test_feature_list = []
     train_label_list = []
     test_label_list = []
-    for i in range(num):
-        tmprdm = random.uniform(0, 1)
-        if tmprdm < ratio:
-            train_feature_list.append(feature_data_list[i])
-            train_label_list.append(label_data_list[i])
-        else:
-            test_feature_list.append(feature_data_list[i])
-            test_label_list.append(label_data_list[i])
+    if not append_file:
+        for i in range(num):
+            tmprdm = random.uniform(0, 1)
+            if tmprdm < ratio:
+                train_feature_list.append(feature_data_list[i])
+                train_label_list.append(label_data_list[i])
+            else:
+                test_feature_list.append(feature_data_list[i])
+                test_label_list.append(label_data_list[i])
+    else:
+        with open(append_file, "r") as fi:
+            append_list = fi.readlines()
+        for i in range(num):
+            tmprdm = random.uniform(0, 1)
+            tmp = feature_data_list[i][:-1] + append_list[i]
+            if tmprdm < ratio:
+                train_feature_list.append(tmp)
+                train_label_list.append(label_data_list[i])
+            else:
+                test_feature_list.append(tmp)
+                test_label_list.append(label_data_list[i])
 
     with open("./data/train/train_feature.data", "w+") as fi:
         fi.write("".join(train_feature_list))
@@ -35,20 +48,24 @@ def divide_dataset(feature_filename, label_filename, ratio):
         fi.write("".join(test_label_list))
 
 
-def data_import(feature_data, label_data):
+def data_import(feature_data, label_data, bit):
     with open(feature_data, "r") as fi:
         feature_list = fi.readlines()
     with open(label_data, "r") as fi:
         label_list = fi.readlines()
     data_set = []
     for i in range(feature_list.__len__()):
-        data = Data(list(feature_list[i]), list(label_list[i])[0:1])  # list(label_list[i])[0:1] 代表的是输出数据第0位构成的列表
+        data = Data(list(feature_list[i]), [list(label_list[i])[bit]])  # list(label_list[i])[0:1] 代表的是输出数据第0位构成的列表
         data_set.append(data)
     return Dataset(data_set)
 
 
+def integrate_data(file1, file2):
+    return True
+
+
 # 数据集相关常数
-INPUT_NODE = 32     # 输入数据的位数
+INPUT_NODE = 36     # 输入数据的位数
 OUTPUT_NODE = 1     # 输出数据的位数
 
 # 神经网络的参数
@@ -56,8 +73,8 @@ LAYER1_NODE = 320
 
 BATCH_SIZE = 100
 
-LEARNING_RATE_BASE = 0.8
-LEARNING_RATE_DECAY = 0.99
+LEARNING_RATE_BASE = 0.1
+LEARNING_RATE_DECAY = 0.9999
 REGULARIZATION_RATE = 0.0001
 TRAINING_STEPS = 500000
 MOVING_AVERAGE_DECAY = 0.99
@@ -97,10 +114,12 @@ def train(data_set, test_set):
 
     train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
+    flag = False
+
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         validate_feed = {x: data_set.features, y_: data_set.labels}
-        # test_feed = {x: test_set.features, y_: test_set.labels}
+        test_feed = {x: test_set.features, y_: test_set.labels}
         for i in range(TRAINING_STEPS):
             if i % 1000 == 0:
                 validate_acc = sess.run(loss, feed_dict=validate_feed)
@@ -108,26 +127,43 @@ def train(data_set, test_set):
                       "using average model is %g " % (i, 1 - validate_acc))
             xs, ys = data_set.next_batch(BATCH_SIZE)
             sess.run(train_step, feed_dict={x: xs, y_: ys})
-            if (1 - validate_acc) > 0.98:
-                print("jump out！")
+
+            if (1 - validate_acc) > 0.985:
+                flag = True
                 break
-        """
+
         test_acc = sess.run(loss, feed_dict=test_feed)
         print("After %d training step(s), test accuracy "
               "using average model is %g " % (TRAINING_STEPS, 1 - test_acc))
         # print(sess.run(average_y, feed_dict={x: test_data, y_: np.array([[1]], dtype=np.float32)}))
-        """
+        return flag, [sess.run(weights1), sess.run(biases1), sess.run(weights2), sess.run(biases2)]
 
 
 def main(argv=None):
-    divide_dataset("./data/TestData/TestData/Ra.txt", "./data/TestData/TestData/leak0.txt", 1)
+    divide_dataset("./data/TestData/TestData/Rb.txt", "./data/TestData/TestData/leak1.txt", 0.99,
+                   "./data/TestData/TestData/leak0.txt")
     # 读文件，第一个是输入，第二个是输出，第三个是训练集数据占数据总量的比
     # 如果训练精度始终达不到（对于奇偶校验和海明校验）,大概率是训练集太小,需要增加训练集数据量
 
-    data_set = data_import("./data/train/train_feature.data", "./data/train/train_label.data")
-    test_set = data_import("./data/test/test_feature.data", "./data/test/test_label.data")
+    result = []
+    bit = 0
+    while True:
+        data_set = data_import("./data/train/train_feature.data", "./data/train/train_label.data", bit)
+        test_set = data_import("./data/test/test_feature.data", "./data/test/test_label.data", bit)
 
-    train(data_set, test_set)
+        flag, tmp_result = train(data_set, test_set)
+
+        if flag:
+            np.savetxt("./parameter/leak1/data"+str(bit)+"w1.txt", tmp_result[0])
+            np.savetxt("./parameter/leak1/data"+str(bit)+"b1.txt", tmp_result[1])
+            np.savetxt("./parameter/leak1/data"+str(bit)+"w2.txt", tmp_result[2])
+            np.savetxt("./parameter/leak1/data"+str(bit)+"b2.txt", tmp_result[3])
+            print(bit)
+            bit += 1
+        else:
+            continue
+        if bit >= 2:
+            break
 
 
 if __name__ == "__main__":
