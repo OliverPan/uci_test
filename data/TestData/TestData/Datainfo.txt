@@ -1,0 +1,42 @@
+Ra: 32bit 随机二进制串，共100000组
+
+Rb: 32bit 随机二进制串，共100000组，每组<Ra,Rb>只存在1bit不同
+
+传输过程:分为四步
+
+        leak0
+Ra--------------------->Rb
+        leak1        
+  <---------------------  	
+        leak2	   
+  --------------------->
+        leak3
+  <---------------------		
+  
+  
+leak0:4bit,
+产生过程：1.分解Ra; Ra[0:32]={Ra0[0:7],Ra1[0:7],Ra3[0:7],Ra3[0:7]};
+          2.奇偶校验; O0=oddcheckbitof(Ra0)
+		              O1=oddcheckbitof(Ra1)
+		              O2=oddcheckbitof(Ra2)
+		              O3=oddcheckbitof(Ra3)
+          3.合并;leak0[4:0]={O0,O1,O2,O3}
+		  
+		  
+leak1:1.B收到传过来的leak0后，与自己的Rb对比进行检测，找出出错bit所在的位置Rb[i](0<=i<=3);
+      2.将Rb[i]分解为两部分，每部分4bit，记为wlocation1_b0，wlocation1_b1;
+	  3.奇偶校验:O0=oddcheckbitof(wlocation1_b0)
+		         O1=oddcheckbitof(wlocation1_b1)
+	  4.合并;leak1[2:0]={O0,O1}
+	  
+leak2:1.A收到B传过来的leak1后，与自己的对应部分Ra[i]对比进行检测，找出出错bit所在进一步的的位置Ra[i](0<=i<=2);
+      2.将Ra[i]分解为两部分，每部分2bit，记为wlocation2_a0，wlocation2_a1;
+	  3.奇偶校验:O0=oddcheckbitof(wlocation2_a0)
+		         O1=oddcheckbitof(wlocation2_a1)
+	  4.合并;leak2[2:0]={O0,O1}
+	  
+leak3:1.B收到A传过来的leak2后，与自己的对应部分Rb[i]对比进行检测，找出出错bit所在进一步的位置Rb[i](0<=i<=2);
+      2.将Rb[i]分解为两部分，每部分1bit，记为wlocation3_b0，wlocation3_b1;
+	  3.奇偶校验:O0=oddcheckbitof(wlocation3_b0)
+		         O1=oddcheckbitof(wlocation3_b1)
+	  4.合并;leak3[2:0]={O0,O1}
