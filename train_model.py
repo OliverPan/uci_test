@@ -65,11 +65,11 @@ def integrate_data(file1, file2):
 
 
 # 数据集相关常数
-INPUT_NODE = 36     # 输入数据的位数
+INPUT_NODE = 64     # 输入数据的位数
 OUTPUT_NODE = 1     # 输出数据的位数
 
 # 神经网络的参数
-LAYER1_NODE = 320
+LAYER1_NODE = 640
 
 BATCH_SIZE = 100
 
@@ -128,7 +128,7 @@ def train(data_set, test_set):
             xs, ys = data_set.next_batch(BATCH_SIZE)
             sess.run(train_step, feed_dict={x: xs, y_: ys})
 
-            if (1 - validate_acc) > 0.985:
+            if (1 - validate_acc) > 0.991:
                 flag = True
                 break
 
@@ -140,8 +140,8 @@ def train(data_set, test_set):
 
 
 def main(argv=None):
-    divide_dataset("./data/TestData/TestData/Rb.txt", "./data/TestData/TestData/leak1.txt", 0.99,
-                   "./data/TestData/TestData/leak0.txt")
+    divide_dataset("./data/TestData_crc/CRC/Rb.txt", "./data/TestData_crc/CRC/2.txt", 0.99,
+                   "./data/TestData_crc/CRC/Ra.txt")
     # 读文件，第一个是输入，第二个是输出，第三个是训练集数据占数据总量的比
     # 如果训练精度始终达不到（对于奇偶校验和海明校验）,大概率是训练集太小,需要增加训练集数据量
 
@@ -154,15 +154,15 @@ def main(argv=None):
         flag, tmp_result = train(data_set, test_set)
 
         if flag:
-            np.savetxt("./parameter/leak1/data"+str(bit)+"w1.txt", tmp_result[0])
-            np.savetxt("./parameter/leak1/data"+str(bit)+"b1.txt", tmp_result[1])
-            np.savetxt("./parameter/leak1/data"+str(bit)+"w2.txt", tmp_result[2])
-            np.savetxt("./parameter/leak1/data"+str(bit)+"b2.txt", tmp_result[3])
+            np.savetxt("./parameter/crc/2/data"+str(bit)+"w1.txt", tmp_result[0])
+            np.savetxt("./parameter/crc/2/data"+str(bit)+"b1.txt", tmp_result[1])
+            np.savetxt("./parameter/crc/2/data"+str(bit)+"w2.txt", tmp_result[2])
+            np.savetxt("./parameter/crc/2/data"+str(bit)+"b2.txt", tmp_result[3])
             print(bit)
             bit += 1
         else:
             continue
-        if bit >= 2:
+        if bit >= 16:
             break
 
 
